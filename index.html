@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AETHEL-SSS | AI-Powered Underwater Side-Scan Sonar Debris & Anomaly Detection System</title>
+  <meta name="description" content="Autonomous dual-beam side-scan sonar waterfall analyzer with acoustic shadow height profiling and marine debris classification for hydrographic and salvage operations.">
+  
+  <!-- Typography: Space Grotesk & JetBrains Mono for authentic marine defense console feel -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;0,700;1,400&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="palette-amber scanlines-active">
+  <div id="app" class="console-shell">
+    
+    <!-- TOP TACTICAL HEADER -->
+    <header class="hud-header">
+      <div class="header-left">
+        <div class="sys-badge">
+          <span class="pulse-indicator"></span>
+          <span class="sys-title">AETHEL-SSS</span>
+          <span class="sys-version">v2.4-HYDRO</span>
+        </div>
+        <div class="sys-divider"></div>
+        <div class="mission-tag">
+          <span class="lbl">MISSION:</span>
+          <span class="val highlight">OP-SAGAR-NIRIKSHAN // SECTOR G-09 (GULF OF MANNAR)</span>
+        </div>
+      </div>
+
+      <!-- Live Towfish Vessel Status -->
+      <div class="header-center">
+        <div class="telemetry-pill">
+          <span class="icon">⚓</span>
+          <span class="lbl">TOWFISH:</span>
+          <span class="val" id="disp-towfish-id">TF-HYDRA-400</span>
+        </div>
+        <div class="telemetry-pill">
+          <span class="lbl">FREQ:</span>
+          <button id="btn-freq-toggle" class="btn-tactical-toggle active" title="Toggle 455 kHz / 900 kHz Dual-Band">
+            <span class="val" id="disp-freq">455 kHz</span> (WIDE-SWATH)
+          </button>
+        </div>
+        <div class="telemetry-pill">
+          <span class="lbl">PING RATE:</span>
+          <span class="val mono" id="disp-ping-rate">24 Hz</span>
+        </div>
+      </div>
+
+      <!-- Quick Action Controls -->
+      <div class="header-right">
+        <div class="status-clock mono" id="live-utc-clock">00:00:00 UTC</div>
+        <button id="btn-scanlines-toggle" class="btn-tactical" title="Toggle CRT Acoustic Scanline Overlay">
+          <span class="icon">▤</span> CRT FX
+        </button>
+        <button id="btn-emergency-docket" class="btn-tactical btn-alert" title="Generate Ministry-Compliant Incident Report">
+          <span class="icon">📑</span> EXPORT DOCKET
+        </button>
+      </div>
+    </header>
+
+    <!-- LIVE TELEMETRY BAR -->
+    <section class="telemetry-strip">
+      <div class="telemetry-metric">
+        <span class="m-label">VESSEL SPEED</span>
+        <span class="m-value mono" id="val-speed">3.8 <small>kn</small></span>
+        <span class="m-status ok">NOMINAL</span>
+      </div>
+      <div class="telemetry-metric">
+        <span class="m-label">TOWFISH ALTITUDE</span>
+        <span class="m-value mono" id="val-altitude">12.4 <small>m</small></span>
+        <span class="m-status ok">OPTIMAL SWATH</span>
+      </div>
+      <div class="telemetry-metric">
+        <span class="m-label">WATER COLUMN (DEPTH)</span>
+        <span class="m-value mono" id="val-depth">38.6 <small>m</small></span>
+        <span class="m-status info">BATHY CLEAR</span>
+      </div>
+      <div class="telemetry-metric">
+        <span class="m-label">SLANT RANGE</span>
+        <span class="m-value mono" id="val-range">75.0 <small>m / ch</small></span>
+        <span class="m-status ok">DUAL CH</span>
+      </div>
+      <div class="telemetry-metric">
+        <span class="m-label">HEADING / TRACK</span>
+        <span class="m-value mono" id="val-heading">184.2° <small>S-SW</small></span>
+        <span class="m-status ok">GYRO LOCKED</span>
+      </div>
+      <div class="telemetry-metric">
+        <span class="m-label">AI CONFIDENCE INDEX</span>
+        <span class="m-value mono highlight-cyan" id="val-ai-status">98.4%</span>
+        <span class="m-status alert-pulse" id="val-ai-badge">STREAM MONITOR</span>
+      </div>
+    </section>
+
+    <!-- MAIN CONSOLE LAYOUT (3-COLUMN TACTICAL DECK) -->
+    <main class="console-body">
+      
+      <!-- LEFT CONTROL & CLASSIFICATION PALETTE -->
+      <aside class="sidebar-panel left-panel">
+        
+        <!-- ACOUSTIC GAIN & TVG CONTROLS -->
+        <div class="panel-card">
+          <div class="card-header">
+            <span class="card-title">ACOUSTIC BEAM TUNER</span>
+            <span class="badge-mini">SIGNAL DSP</span>
+          </div>
+          <div class="card-body controls-grid">
+            <div class="ctrl-group">
+              <div class="ctrl-label-row">
+                <label for="slider-gain">PRIMARY GAIN</label>
+                <span class="mono" id="disp-gain">+18 dB</span>
+              </div>
+              <input type="range" id="slider-gain" min="0" max="40" value="18" step="1">
+            </div>
+
+            <div class="ctrl-group">
+              <div class="ctrl-label-row">
+                <label for="slider-tvg">TVG (TIME VARIED GAIN)</label>
+                <span class="mono" id="disp-tvg">24 dB/km</span>
+              </div>
+              <input type="range" id="slider-tvg" min="0" max="60" value="24" step="2">
+            </div>
+
+            <div class="ctrl-group">
+              <div class="ctrl-label-row">
+                <label for="slider-contrast">ACOUSTIC DYNAMIC RANGE</label>
+                <span class="mono" id="disp-contrast">1.25x</span>
+              </div>
+              <input type="range" id="slider-contrast" min="0.5" max="2.5" value="1.25" step="0.05">
+            </div>
+
+            <div class="ctrl-group">
+              <div class="ctrl-label-row">
+                <label for="slider-speed">SURVEY SPEED SIMULATOR</label>
+                <span class="mono" id="disp-speed">3.8 kn</span>
+              </div>
+              <input type="range" id="slider-speed" min="1.0" max="8.0" value="3.8" step="0.2">
+            </div>
+          </div>
+        </div>
+
+        <!-- SONAR COLOR PALETTES (Essential Hydrographic Standard) -->
+        <div class="panel-card">
+          <div class="card-header">
+            <span class="card-title">COLOR PALETTE</span>
+            <span class="hint-key">[P] Cycle</span>
+          </div>
+          <div class="card-body">
+            <div class="palette-selector-grid">
+              <button class="btn-palette active" data-palette="amber">
+                <span class="color-swatch swatch-amber"></span>
+                <span>Amber Phosphor</span>
+              </button>
+              <button class="btn-palette" data-palette="copper">
+                <span class="color-swatch swatch-copper"></span>
+                <span>Copper Sepia</span>
+              </button>
+              <button class="btn-palette" data-palette="emerald">
+                <span class="color-swatch swatch-emerald"></span>
+                <span>Glint Emerald</span>
+              </button>
+              <button class="btn-palette" data-palette="grayscale">
+                <span class="color-swatch swatch-mono"></span>
+                <span>Monochromatic</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- AI DEBRIS INVENTORY CLASSIFIER -->
+        <div class="panel-card flex-grow">
+          <div class="card-header">
+            <span class="card-title">DEBRIS RISK MATRIX</span>
+            <span class="counter-badge" id="stat-total-anomalies">0 DETECTED</span>
+          </div>
+          <div class="card-body debris-types-list">
+            <div class="risk-row" data-type="ghost-net">
+              <div class="risk-info">
+                <span class="risk-pill pill-critical">CLASS A</span>
+                <span class="risk-name">Ghost Net / Entangled Gear</span>
+              </div>
+              <span class="risk-count mono" id="count-ghost-net">0</span>
+            </div>
+            <div class="risk-row" data-type="chemical-drum">
+              <div class="risk-info">
+                <span class="risk-pill pill-high">CLASS B</span>
+                <span class="risk-name">Toxic / Chemical Drum</span>
+              </div>
+              <span class="risk-count mono" id="count-chemical-drum">0</span>
+            </div>
+            <div class="risk-row" data-type="sunken-wreck">
+              <div class="risk-info">
+                <span class="risk-pill pill-moderate">CLASS C</span>
+                <span class="risk-name">Submerged Hull / Wreckage</span>
+              </div>
+              <span class="risk-count mono" id="count-sunken-wreck">0</span>
+            </div>
+            <div class="risk-row" data-type="plastic-mass">
+              <div class="risk-info">
+                <span class="risk-pill pill-moderate">CLASS D</span>
+                <span class="risk-name">Plastic Agglomerate / Refuse</span>
+              </div>
+              <span class="risk-count mono" id="count-plastic-mass">0</span>
+            </div>
+            <div class="risk-row" data-type="uxo">
+              <div class="risk-info">
+                <span class="risk-pill pill-extreme">CLASS E</span>
+                <span class="risk-name">UXO / Submerged Munitions</span>
+              </div>
+              <span class="risk-count mono" id="count-uxo">0</span>
+            </div>
+          </div>
+          
+          <div class="card-footer-btns">
+            <button id="btn-inject-anomaly" class="btn-action-outline">
+              <span class="icon">⚡</span> Inject Sonar Anomaly
+            </button>
+            <label class="btn-action-outline file-upload-btn">
+              <span class="icon">⬆</span> Upload Sonar Scan
+              <input type="file" id="file-sonar-upload" accept="image/*" style="display:none;">
+            </label>
+          </div>
+        </div>
+
+      </aside>
+
+      <!-- CENTER STAGE: WATERFALL CANVAS WITH SLANT-RANGE SCALES -->
+      <section class="waterfall-stage">
+        
+        <!-- WATERFALL HUD CONTROLS OVERLAY -->
+        <div class="waterfall-toolbar">
+          <div class="tb-left">
+            <button id="btn-playback-toggle" class="tb-btn tb-btn-play" title="Spacebar to Play/Pause">
+              <span class="icon" id="play-pause-icon">⏸</span>
+              <span id="play-pause-text">PAUSE STREAM</span>
+            </button>
+            <button id="btn-freeze-target" class="tb-btn" title="[F] Freeze & Isolate Target Under Cursor">
+              <span class="icon">🎯</span> FREEZE TARGET [F]
+            </button>
+            <button id="btn-clear-waterfall" class="tb-btn" title="Clear Canvas Buffer">
+              <span class="icon">↺</span> FLUSH BUFFER
+            </button>
+          </div>
+
+          <div class="tb-center">
+            <span class="channel-indicator port">◄ PORT BEAM (75m)</span>
+            <span class="channel-indicator nadir">● NADIR BLANK (TOWPATH)</span>
+            <span class="channel-indicator stbd">STARBOARD BEAM (75m) ►</span>
+          </div>
+
+          <div class="tb-right">
+            <label class="checkbox-container">
+              <input type="checkbox" id="chk-ai-boxes" checked>
+              <span class="checkmark"></span>
+              AI Bounding Boxes
+            </label>
+            <label class="checkbox-container">
+              <input type="checkbox" id="chk-shadow-vectors" checked>
+              <span class="checkmark"></span>
+              Acoustic Shadows
+            </label>
+          </div>
+        </div>
+
+        <!-- MAIN DUAL-CHANNEL WATERFALL CANVAS CONTAINER -->
+        <div class="waterfall-viewport" id="waterfall-container">
+          
+          <!-- Port Slant-Range Ruler -->
+          <div class="range-ruler range-ruler-port" id="ruler-port">
+            <div class="tick" style="top: 0%"><span>75m</span></div>
+            <div class="tick" style="top: 25%"><span>50m</span></div>
+            <div class="tick" style="top: 50%"><span>25m</span></div>
+            <div class="tick" style="top: 75%"><span>10m</span></div>
+            <div class="tick" style="top: 96%"><span>0m</span></div>
+          </div>
+
+          <!-- Starboard Slant-Range Ruler -->
+          <div class="range-ruler range-ruler-stbd" id="ruler-stbd">
+            <div class="tick" style="top: 0%"><span>75m</span></div>
+            <div class="tick" style="top: 25%"><span>50m</span></div>
+            <div class="tick" style="top: 50%"><span>25m</span></div>
+            <div class="tick" style="top: 75%"><span>10m</span></div>
+            <div class="tick" style="top: 96%"><span>0m</span></div>
+          </div>
+
+          <!-- Dual Sonar Display Canvas -->
+          <canvas id="sonarCanvas"></canvas>
+
+          <!-- Interactive Target Annotation Layer -->
+          <div id="annotation-layer" class="annotation-overlay"></div>
+
+          <!-- Towpath Centerline Indicator (Nadir) -->
+          <div class="nadir-centerline">
+            <div class="nadir-track-pulse"></div>
+          </div>
+
+          <!-- Bottom Live Ping Line -->
+          <div class="ping-line"></div>
+        </div>
+
+        <!-- BOTTOM WATERFALL DIAGNOSTIC TICKER -->
+        <div class="waterfall-footer">
+          <div class="wf-stat">
+            <span class="lbl">CANVAS RESOLUTION:</span>
+            <span class="val mono" id="disp-canvas-res">1200 x 680 px</span>
+          </div>
+          <div class="wf-stat">
+            <span class="lbl">ACOUSTIC SAMPLING:</span>
+            <span class="val mono">0.035 m/sample</span>
+          </div>
+          <div class="wf-stat">
+            <span class="lbl">LAT-LONG PROJECTION:</span>
+            <span class="val mono" id="disp-current-coords">08°58'24.1"N 78°14'52.6"E</span>
+          </div>
+          <div class="wf-stat highlight-cyan">
+            <span class="lbl">ACTIVE DETECTIONS IN BUFFER:</span>
+            <span class="val mono" id="disp-active-detections">0</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- RIGHT TACTICAL SURVEY MAP & TARGET INSPECTOR -->
+      <aside class="sidebar-panel right-panel">
+        
+        <!-- ACOUSTIC SHADOW TARGET PROFILER (The Unique SIH Science Feature) -->
+        <div class="panel-card highlight-card">
+          <div class="card-header">
+            <span class="card-title">ACOUSTIC SHADOW PROFILER</span>
+            <span class="badge-mini badge-physics">PHYSICS ENGINE</span>
+          </div>
+          <div class="card-body target-inspector-body" id="inspector-content">
+            <div class="empty-inspector-state" id="inspector-empty">
+              <span class="empty-icon">⌖</span>
+              <p>Click on any detected sonar anomaly or bounding box to inspect physical acoustic shadow height and elevation off seafloor.</p>
+            </div>
+
+            <div class="inspector-active-state hidden" id="inspector-active">
+              <div class="target-title-bar">
+                <span class="target-badge" id="insp-badge">CLASS A // GHOST NET</span>
+                <span class="target-id mono" id="insp-id">#ANOM-8042</span>
+              </div>
+
+              <!-- Mini target zoom thumbnail -->
+              <div class="target-zoom-canvas-wrap">
+                <canvas id="targetZoomCanvas" width="220" height="110"></canvas>
+                <div class="zoom-crosshair"></div>
+                <span class="zoom-scale-tag">3.5x ZOOM</span>
+              </div>
+
+              <!-- Mathematical Shadow Height Formula Breakdown -->
+              <div class="shadow-formula-box">
+                <div class="formula-title">SEABED ELEVATION EQUATION:</div>
+                <div class="formula-math mono">h = (H<sub>t</sub> × L<sub>s</sub>) / R<sub>s</sub></div>
+                
+                <div class="formula-calc-grid">
+                  <div class="f-col">
+                    <span class="f-lbl">Towfish Alt (H<sub>t</sub>):</span>
+                    <span class="f-val mono" id="insp-ht">12.4 m</span>
+                  </div>
+                  <div class="f-col">
+                    <span class="f-lbl">Shadow Len (L<sub>s</sub>):</span>
+                    <span class="f-val mono" id="insp-ls">4.8 m</span>
+                  </div>
+                  <div class="f-col">
+                    <span class="f-lbl">Slant Range (R<sub>s</sub>):</span>
+                    <span class="f-val mono" id="insp-rs">38.2 m</span>
+                  </div>
+                  <div class="f-col highlight">
+                    <span class="f-lbl">CALCULATED HEIGHT:</span>
+                    <span class="f-val mono highlight-cyan" id="insp-height">1.56 m</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Debris details & mitigation recommendation -->
+              <div class="target-metadata-list">
+                <div class="meta-row">
+                  <span class="m-k">ACOUSTIC BACKSCATTER:</span>
+                  <span class="m-v mono" id="insp-backscatter">-14.2 dB</span>
+                </div>
+                <div class="meta-row">
+                  <span class="m-k">CONFIDENCE SCORE:</span>
+                  <span class="m-v mono" id="insp-confidence">96.7%</span>
+                </div>
+                <div class="meta-row">
+                  <span class="m-k">COORDINATES:</span>
+                  <span class="m-v mono" id="insp-coords">08°58'24.8"N 78°14'53.1"E</span>
+                </div>
+                <div class="meta-row">
+                  <span class="m-k">ACTION RECOMMENDED:</span>
+                  <span class="m-v action-tag" id="insp-action">DEPLOY ROV RETRIEVAL GRAPPLE</span>
+                </div>
+              </div>
+
+              <button id="btn-flag-for-docket" class="btn-action-full">
+                <span>📌</span> Log to Incident Docket
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- TACTICAL SURVEY MISSION MAP (Lawnmower Track) -->
+        <div class="panel-card flex-grow">
+          <div class="card-header">
+            <span class="card-title">BATHYMETRIC SURVEY TRACK</span>
+            <span class="badge-mini">LAWNMOWER 100m</span>
+          </div>
+          <div class="card-body map-card-body">
+            <div class="tactical-map-container" id="map-container">
+              <canvas id="surveyMapCanvas"></canvas>
+              <div class="map-grid-overlay"></div>
+              <div class="map-compass">
+                <span>N</span>
+                <div class="compass-needle"></div>
+              </div>
+              <div class="map-legend">
+                <div class="legend-item"><span class="leg-dot current-pos"></span> Survey Vessel</div>
+                <div class="legend-item"><span class="leg-dot hazard-red"></span> High Hazard</div>
+                <div class="legend-item"><span class="leg-dot hazard-amber"></span> Debris Spot</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- MISSION AUDIT & INCIDENT LOG STREAM -->
+        <div class="panel-card log-card">
+          <div class="card-header">
+            <span class="card-title">TELEMETRY AUDIT TRAIL</span>
+            <span class="badge-mini">AUTO-COMM</span>
+          </div>
+          <div class="card-body log-body" id="mission-log-stream">
+            <!-- Dynamic log rows -->
+          </div>
+        </div>
+
+      </aside>
+
+    </main>
+
+    <!-- INCIDENT DOCKET MODAL (Official Ministry Report Template) -->
+    <div id="docket-modal" class="modal-overlay hidden">
+      <div class="modal-card">
+        <div class="modal-header">
+          <div class="docket-badge">
+            <span class="emblem">⚓</span>
+            <div class="emblem-text">
+              <h2>GOVERNMENT OF INDIA // HYDROGRAPHIC SURVEY DIRECTORATE</h2>
+              <h3>NATIONAL UNDERWATER HAZARD & MARINE DEBRIS INTERCEPTION DOCKET</h3>
+            </div>
+          </div>
+          <button id="btn-close-docket" class="btn-modal-close" title="Close Docket">&times;</button>
+        </div>
+
+        <div class="modal-body docket-content" id="docket-print-area">
+          <div class="docket-meta-grid">
+            <div class="d-box">
+              <span class="d-lbl">REPORT ID:</span>
+              <span class="d-val mono" id="rpt-id">IND-HYDRO-2026-0988</span>
+            </div>
+            <div class="d-box">
+              <span class="d-lbl">VESSEL / SYSTEM:</span>
+              <span class="d-val">RV SAGAR DHWANI // AETHEL-SSS</span>
+            </div>
+            <div class="d-box">
+              <span class="d-lbl">SURVEY SECTOR:</span>
+              <span class="d-val">Gulf of Mannar Biosphere Reserve (Zone B-4)</span>
+            </div>
+            <div class="d-box">
+              <span class="d-lbl">TIMESTAMP (UTC):</span>
+              <span class="d-val mono" id="rpt-timestamp">2026-09-27T17:24:19Z</span>
+            </div>
+          </div>
+
+          <div class="docket-summary-banner">
+            <div class="banner-stat">
+              <span class="b-lbl">TOTAL TARGETS SCANNED</span>
+              <span class="b-val mono" id="rpt-total-scanned">14</span>
+            </div>
+            <div class="banner-stat">
+              <span class="b-lbl">HIGH-RISK HAZARDS</span>
+              <span class="b-val mono alert-red" id="rpt-high-hazards">3</span>
+            </div>
+            <div class="banner-stat">
+              <span class="b-lbl">ESTIMATED VOLUME OF DEBRIS</span>
+              <span class="b-val mono highlight-cyan" id="rpt-est-volume">18.4 m³</span>
+            </div>
+            <div class="banner-stat">
+              <span class="b-lbl">CLEARANCE STATUS</span>
+              <span class="b-val mono status-warning">INTERVENTION REQUIRED</span>
+            </div>
+          </div>
+
+          <div class="docket-table-wrap">
+            <table class="docket-table">
+              <thead>
+                <tr>
+                  <th>INCIDENT ID</th>
+                  <th>CLASSIFICATION</th>
+                  <th>COORDINATES</th>
+                  <th>SHADOW LEN / RANGE</th>
+                  <th>CALC ELEVATION</th>
+                  <th>CONFIDENCE</th>
+                  <th>RECOMMENDED ACTION</th>
+                </tr>
+              </thead>
+              <tbody id="docket-table-body">
+                <!-- Injected via JavaScript -->
+              </tbody>
+            </table>
+          </div>
+
+          <div class="docket-authorization">
+            <div class="auth-col">
+              <div class="sig-line"></div>
+              <span class="auth-title">CHIEF HYDROGRAPHER / MISSION OIC</span>
+              <span class="auth-sub">Indian Naval Hydrographic Department / NIOT</span>
+            </div>
+            <div class="auth-col">
+              <div class="sig-line"></div>
+              <span class="auth-title">AETHEL-SSS AUTONOMOUS AI ATTESTATION</span>
+              <span class="auth-sub">Sha-256 Hash: e9a4d87b1c34... Verified</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button id="btn-print-docket" class="btn-tactical btn-primary">
+            <span>🖨</span> Print / Save as PDF
+          </button>
+          <button id="btn-export-geojson" class="btn-tactical">
+            <span>📥</span> Export GeoJSON / CSV
+          </button>
+          <button id="btn-dismiss-modal" class="btn-tactical btn-secondary">
+            Close Docket
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Scripts -->
+  <script src="js/palette.js"></script>
+  <script src="js/sonar-engine.js"></script>
+  <script src="js/ai-detector.js"></script>
+  <script src="js/map-tracker.js"></script>
+  <script src="js/docket-export.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
